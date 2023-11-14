@@ -46,13 +46,17 @@ public class MeshUtils
                     break;
                 case "vt" when segs.Length >= 3:
 
-                    var vtx = new Vertex2(
-                        double.Parse(segs[1], CultureInfo.InvariantCulture),
-                        double.Parse(segs[2], CultureInfo.InvariantCulture));
-                    
+                    double sValue = double.Parse(segs[1], CultureInfo.InvariantCulture);
+                    double tValue = double.Parse(segs[2], CultureInfo.InvariantCulture);
+                    const double epsilon = 0.000001;
+                    if(sValue < 0 && Math.Abs(sValue) < epsilon) { sValue = 0; }
+                    if(tValue > 1 && (tValue - 1) < epsilon) {  tValue = 1; }
+
+                    var vtx = new Vertex2(sValue, tValue);
+
                     if (vtx.X < 0 || vtx.Y < 0 || vtx.X > 1 || vtx.Y > 1)
                         throw new Exception("Invalid texture coordinates: " + vtx);
-                    
+
                     textureVertices.Add(vtx);
                     break;
                 case "vn" when segs.Length == 3:

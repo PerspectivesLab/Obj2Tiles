@@ -36,7 +36,7 @@ public static partial class StagesFacade
 
             Console.WriteLine(" -> Decimating mesh {0} with quality {1:0.00}", fileName, quality);
 
-            tasks.Add(Task.Run(() => InternalDecimate(sourceObjMesh, destFile, quality)));
+            tasks.Add(Task.Run(() => InternalDecimate(sourceObjMesh, destFile, quality, index)));
             
             destFiles.Add(destFile);
         }
@@ -46,6 +46,20 @@ public static partial class StagesFacade
         
         Console.WriteLine(" -> Copying obj dependencies");
         Utils.CopyObjDependencies(sourcePath, destPath);
+
+        if (lods > 1)
+        {
+            var texturesQualities = Enumerable.Range(0, lods - 2).Select(i => 1.0f - ((i + 1) / (float)(lods - 1))).ToArray();
+
+            for (var index = 0; index < texturesQualities.Length; index++)
+            {
+                var quality = texturesQualities[index];
+                Utils.CreateDecimatedObjDependencies(destFiles[0], quality, index);
+            }
+
+            Utils.CreateDecimatedObjDependencies(destFiles[0], 0, texturesQualities.Length);
+        }
+
         Console.WriteLine(" ?> Dependencies copied");
 
         return new DecimateResult { DestFiles = destFiles.ToArray(), Bounds = bounds };
@@ -53,7 +67,7 @@ public static partial class StagesFacade
     }
 
 
-    private static void InternalDecimate(ObjMesh sourceObjMesh, string destPath, float quality)
+    private static void InternalDecimate(ObjMesh sourceObjMesh, string destPath, float quality, int index)
     {
         quality = MathHelper.Clamp01(quality);
         var sourceVertices = sourceObjMesh.Vertices;
@@ -103,11 +117,13 @@ public static partial class StagesFacade
         var destVertices = destMesh.Vertices;
         var destNormals = destMesh.Normals;
         var destIndices = destMesh.GetSubMeshIndices();
+        var mtl = $"{Path.GetFileNameWithoutExtension(sourceObjMesh.MaterialLibraries[0])}_{index - 1}.mtl";
+        string[] materialLibrairies = { mtl };
 
         var destObjMesh = new ObjMesh(destVertices, destIndices)
         {
             Normals = destNormals,
-            MaterialLibraries = sourceObjMesh.MaterialLibraries,
+            MaterialLibraries = materialLibrairies,
             SubMeshMaterials = sourceObjMesh.SubMeshMaterials
         };
 

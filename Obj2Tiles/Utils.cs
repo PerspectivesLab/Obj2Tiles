@@ -3,6 +3,8 @@ using Obj2Tiles.Library.Geometry;
 using Obj2Tiles.Stages.Model;
 using Obj2Tiles.Tiles;
 using SilentWave.Obj2Gltf;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp;
 
 namespace Obj2Tiles;
 
@@ -150,7 +152,49 @@ public static class Utils
             Console.WriteLine($" -> Copied {dependency}");
         }
     }
-    
+
+    public static void CreateDecimatedObjDependencies(string input, float quality, int index)
+    {
+        var inputFolder = Path.GetDirectoryName(input);
+        var dependencies = Utils.GetObjDependencies(input);
+
+        var mtlPath = Path.Combine(inputFolder, dependencies.ElementAt(0));
+        var mtlFile = File.ReadAllText(mtlPath);
+
+        foreach (var dependency in dependencies)
+        {
+            var dependencyPath = $"{Path.GetFileNameWithoutExtension(dependency)}_{index}{Path.GetExtension(dependency)}";
+            mtlFile = mtlFile.Replace(dependency, dependencyPath);
+        }
+
+        var newMtlpath = Path.Combine(inputFolder, $"{Path.GetFileNameWithoutExtension(mtlPath)}_{index}.mtl");
+        File.WriteAllText(newMtlpath, mtlFile);
+
+        foreach (var dependency in dependencies)
+        {
+            if (Path.GetExtension(dependency) == ".mtl") continue;
+
+            var imgPath = Path.Combine(inputFolder, dependency);
+            var imgName = $"{Path.GetFileNameWithoutExtension(imgPath)}_{index}{Path.GetExtension(imgPath)}";
+            var outPath = Path.Combine(inputFolder, imgName);
+            using (Image image = Image.Load(imgPath))
+            {
+                int minTextureSize = 256;
+                int d = image.Width - minTextureSize;
+                int size = minTextureSize + (int)(Math.Floor(d * quality));
+                int width = size;
+                int height = size;
+
+                if (d > 0)
+                {
+                    image.Mutate(x => x.Resize(width, height));
+                }
+
+                image.Save(outPath);
+            }
+        }
+    }
+
     public static void ConvertB3dm(string objPath, string destPath)
     {
         var dir = Path.GetDirectoryName(objPath);
